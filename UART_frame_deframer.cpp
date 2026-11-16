@@ -68,61 +68,84 @@ DISCARDED 0
 ```
 */
 
-
-
 #include <iostream>
-#include <string>
-#include <stdint.h>
+#include <cstdint>
 #include <vector>
 
-static void get_packets_form_str(const std::string& str_packets, int len, std::vector<uint8_t>& packets){
-    
-    std::string str_val;
-    str_val.clear();
-    uint8_t val{0};
+enum State : uint8_t { HUNT, LEN, PAYLOAD, CHK };
 
-    for(char c : str_packets){
-        if(c == ' '){
-            val = static_cast<uint8_t>(std::stoul(str_val, nullptr, 16));
-            packets.push_back(val);
-            str_val.clear();
-        }else{
-            str_val += c;
+struct Diframer{
+
+    State state{HUNT};
+    uint8_t len{0}, got{0}, sum{0};
+    uint8_t buf[32]; // payload buffer
+    uint32_t discarded{0};
+
+    void feed(uint8_t b){
+
+        switch (state)
+        {
+        case HUNT:
+            if(b == 0XAA){
+                state = LEN;
+            }else{
+                discarded++;
+            }
+            break;
+
+        case LEN:
+            if(b > 32){
+                std::puts("ERR LEN");
+                state = HUNT;
+                feed(b);  // re-examine this byte as a hunting byte
+            }else{
+                len = b; got = 0; sum = b; // add length 1st
+                state = (len == 0) ? CHK : PAYLOAD;
+            }
+            break;
+
+        case PAYLOAD:
+            buf[got++] = b;
+            sum =  (uint8_t)(sum + b); // sum of payload bytes mod 256
+            if(got == len) state = CHK;
+            break;
+
+        case CHK:
+            if(b == sum){
+                std::printf("FRAME %u", (unsigned)len);
+                for(uint8_t i=0; i<len; i++) std::printf(" %02X", buf[i]);
+                std::putchar('\n');
+            }else{
+                std::puts("ERR CHK");
+            }
+            state = HUNT;
+            break;
+
         }
     }
-    val = static_cast<uint8_t>(std::stoul(str_val, nullptr, 16));
-    packets.push_back(val);
 
-    if(len != packets.size()){
-        throw std::invalid_argument("Enterd packet lenth and the string packets length not matched");
+    void finish() {
+        if(state != HUNT) std::puts("ERR TRUNC");
+        std::printf("DISCARDED %u\n", (unsigned)discarded);
     }
-}
+
+};
 
 int main(){
 
-    int packets_length{0};
-    std::string str_packets;
-    try{
+    int n;
+    if(std::scanf("%d", &n) != 1) n = 0;
 
-        std::cin >> packets_length;
-        std::cin.ignore();
-        getline(std::cin, str_packets);
+    while(1){
+        Diframer d;
 
-        std::vector<uint8_t> packets;
-        get_packets_form_str(str_packets, packets_length, packets);
-
-        for(uint8_t packet : packets){
-            printf("0x%X ", packet);
+        for(int i=0; i < n; i++){
+            unsigned v;
+            if(std::scanf("%x", &v) != 1) break;
+            d.feed((uint8_t)v);
         }
-        std::cout << '\n';
-
-    }catch(std::exception& e){
-        std::cout << "Expection: " << e.what() << '\n';
+        d.finish();
     }
-
     return 0;
 }
-
-
-
 
