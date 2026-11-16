@@ -56,12 +56,12 @@ input:
 
 Output:
 ```
-3 5
-8192 16384 8192
-1000 0 0 0 -1000
+250
+500
+250
+0
+-250
 ```
-
-
 */
 
 #include <cstdint>
@@ -73,20 +73,44 @@ constexpr int kMaxTaps = 64;
 class Fir {
 public:
     // Store the K Q15 coefficients and clear the sample history.
-    void init(const int16_t *coeffs, int k) 
-    { 
-        (void)coeffs; (void)k; /* TODO */ 
+    void init(const int16_t *coeffs, int k) {
+        k_ = k;
+        pos_ = 0;
+        for (int i = 0; i < kMaxTaps; ++i) {
+            h_[i] = (i < k) ? coeffs[i] : 0;
+            x_[i] = 0;
+        }
     }
 
     // Push one input sample and return the filtered int16 output.
-    int16_t step(int16_t sample) 
-    { 
-        (void)sample; return 0; /* TODO */ 
+    int16_t step(int16_t sample) {
+        // Move the "newest" slot back one position (circular), store sample there.
+        pos_ = (pos_ == 0) ? k_ - 1 : pos_ - 1;
+        x_[pos_] = sample;
+
+        // x_[pos_] is x[n], x_[pos_+1] is x[n-1], ... wrapping around.
+        int64_t acc = 0;
+        int idx = pos_;
+        for (int j = 0; j < k_; ++j) {
+            acc += static_cast<int32_t>(h_[j]) * static_cast<int32_t>(x_[idx]);
+            if (++idx == k_) idx = 0;
+        }
+
+        // Round half up, then floor back to Q0 (arithmetic shift floors).
+        int64_t y = (acc + (1 << 14)) >> 15;
+
+        if (y > 32767)  y = 32767;
+        if (y < -32768) y = -32768;
+        return static_cast<int16_t>(y);
     }
 
 private:
-    // TODO: coefficients and sample history, fixed size (no heap).
+    int16_t h_[kMaxTaps];   // Q15 coefficients
+    int16_t x_[kMaxTaps];   // circular sample history
+    int k_ = 1;
+    int pos_ = 0;           // index of the newest sample
 };
+
 
 int main() {
     std::ios::sync_with_stdio(false);
