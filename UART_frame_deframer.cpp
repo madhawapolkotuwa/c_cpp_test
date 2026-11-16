@@ -70,7 +70,9 @@ DISCARDED 0
 
 #include <iostream>
 #include <cstdint>
-#include <vector>
+
+constexpr std::uint8_t kSof = 0xAA;
+constexpr int kMaxPayload = 32;
 
 enum State : uint8_t { HUNT, LEN, PAYLOAD, CHK };
 
@@ -86,7 +88,7 @@ struct Diframer{
         switch (state)
         {
         case HUNT:
-            if(b == 0XAA){
+            if(b == kSof){
                 state = LEN;
             }else{
                 discarded++;
@@ -94,7 +96,7 @@ struct Diframer{
             break;
 
         case LEN:
-            if(b > 32){
+            if(b > kMaxPayload){
                 std::puts("ERR LEN");
                 state = HUNT;
                 feed(b);  // re-examine this byte as a hunting byte
@@ -136,7 +138,7 @@ int main(){
     int n;
     if(std::scanf("%d", &n) != 1) n = 0;
 
-    while(1){
+    {
         Diframer d;
 
         for(int i=0; i < n; i++){
