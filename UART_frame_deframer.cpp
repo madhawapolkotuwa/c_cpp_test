@@ -67,3 +67,62 @@ FRAME 1 05
 DISCARDED 0
 ```
 */
+
+
+
+#include <iostream>
+#include <string>
+#include <stdint.h>
+#include <vector>
+
+static void get_packets_form_str(const std::string& str_packets, int len, std::vector<uint8_t>& packets){
+    
+    std::string str_val;
+    str_val.clear();
+    uint8_t val{0};
+
+    for(char c : str_packets){
+        if(c == ' '){
+            val = static_cast<uint8_t>(std::stoul(str_val, nullptr, 16));
+            packets.push_back(val);
+            str_val.clear();
+        }else{
+            str_val += c;
+        }
+    }
+    val = static_cast<uint8_t>(std::stoul(str_val, nullptr, 16));
+    packets.push_back(val);
+
+    if(len != packets.size()){
+        throw std::invalid_argument("Enterd packet lenth and the string packets length not matched");
+    }
+}
+
+int main(){
+
+    int packets_length{0};
+    std::string str_packets;
+    try{
+
+        std::cin >> packets_length;
+        std::cin.ignore();
+        getline(std::cin, str_packets);
+
+        std::vector<uint8_t> packets;
+        get_packets_form_str(str_packets, packets_length, packets);
+
+        for(uint8_t packet : packets){
+            printf("0x%X ", packet);
+        }
+        std::cout << '\n';
+
+    }catch(std::exception& e){
+        std::cout << "Expection: " << e.what() << '\n';
+    }
+
+    return 0;
+}
+
+
+
+
