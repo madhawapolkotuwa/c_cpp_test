@@ -71,6 +71,13 @@ Output:
 constexpr int kMaxTaps = 64;
 
 class Fir {
+
+    int16_t m_buff[64];
+    int16_t m_coeffs[64];
+    int16_t m_order;
+
+    uint8_t m_buffIntex;
+
 public:
     // Store the K Q15 coefficients and clear the sample history.
     void init(const int16_t *coeffs, int k) {
